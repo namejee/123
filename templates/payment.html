@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>支付 - 红梅花开清债清查项目</title>
+    <link href="https://cdn.bootcdn.net/ajax/libs/bootstrap/5.1.3/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-8 text-center">
+                <h2 class="mb-4">请扫码支付</h2>
+                <div class="mb-4">
+                    <img id="qrcode-image" src="/static/qrcodes/{{ qrcode.filename }}" alt="支付二维码" class="img-fluid" style="max-width: 300px;">
+                </div>
+                <div class="mb-3">
+                    <h4>支付金额：¥{{ amount }}</h4>
+                </div>
+                <div class="mb-4">
+                    <div class="btn-group" role="group">
+                        {% if payment_method == 'alipay' %}
+                        <button type="button" class="btn btn-outline-primary active" disabled onclick="switchPaymentMethod('alipay')" id="alipay-btn">支付宝</button>
+                        {% else %}
+                        <button type="button" class="btn btn-outline-primary active" disabled onclick="switchPaymentMethod('wechat')" id="wechat-btn">微信支付</button>
+                        {% endif %}
+                    </div>
+                    <p class="mt-3" id="payment-method-text">支付方式：{{ '支付宝' if payment_method == 'alipay' else '微信支付' }}</p>
+                </div>
+                <form id="completeForm">
+                    <input type="hidden" name="name" value="{{ name }}">
+                    <input type="hidden" name="phone" value="{{ phone }}">
+                    <input type="hidden" name="id_card" value="{{ id_card }}">
+                    <input type="hidden" name="amount" value="{{ amount }}">
+                    <input type="hidden" name="payment_method" value="{{ payment_method }}">
+                    <input type="hidden" name="qrcode_filename" value="{{ qrcode.filename }}">
+                    <input type="hidden" name="qrcode_remark" value="{{ qrcode.remark }}">
+                    <button type="button" class="btn btn-success btn-lg" onclick="completePayment()">支付完成</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.bootcdn.net/ajax/libs/bootstrap/5.1.3/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function switchPaymentMethod(method) {
+            // 获取表单数据
+            const formData = new FormData();
+            formData.append('name', document.querySelector('input[name="name"]').value);
+            formData.append('phone', document.querySelector('input[name="phone"]').value);
+            formData.append('id_card', document.querySelector('input[name="id_card"]').value);
+            formData.append('amount', document.querySelector('input[name="amount"]').value);
+            formData.append('payment_method', method);
+
+            // 请求新的二维码
+            fetch('/recharge', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.text())
+            .then(html => {
+                // 解析返回的HTML以获取新的二维码图片URL
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const newQRCodeSrc = doc.getElementById('qrcode-image').src;
+                
+                // 更新二维码图片
+                document.getElementById('qrcode-image').src = newQRCodeSrc;
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('刷新二维码失败，请重试');
+            });
+        }
+
+        function completePayment() {
+            const form = document.getElementById('completeForm');
+            const formData = new FormData(form);
+
+            fetch('/complete_payment', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('支付完成！订单号：' + data.order_number);
+                    window.location.href = '/';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('操作失败，请重试');
+            });
+        }
+    </script>
+</body>
+</html>

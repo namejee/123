@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>二维码管理 - 红梅花开清债清查项目</title>
+    <link href="https://cdn.bootcdn.net/ajax/libs/bootstrap/5.1.3/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="/admin/dashboard">管理后台</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/admin/qrcodes">二维码管理</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/admin/orders">订单管理</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/admin/statistics">统计分析</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/admin/logs">日志查看</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                {% with messages = get_flashed_messages() %}
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-success">{{ message }}</div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">上传新二维码</h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" enctype="multipart/form-data">
+                            <div class="mb-3">
+                                <label for="type" class="form-label">支付类型</label>
+                                <select class="form-select" id="type" name="type" required>
+                                    <option value="alipay">支付宝</option>
+                                    <option value="wechat">微信支付</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="qrcode" class="form-label">二维码图片</label>
+                                <input type="file" class="form-control" id="qrcode" name="qrcode" accept="image/*" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="remark" class="form-label">备注</label>
+                                <input type="text" class="form-control" id="remark" name="remark" placeholder="请输入备注信息">
+                            </div>
+                            <button type="submit" class="btn btn-primary">上传</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">已上传的二维码</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            {% for qrcode in qrcodes %}
+                            <div class="col-md-6 mb-4">
+                                <div class="card h-100">
+                                    <img src="/static/qrcodes/{{ qrcode.filename }}" class="card-img-top" alt="二维码">
+                                    <div class="card-body">
+                                        <h6 class="card-title">{{ '支付宝' if qrcode.type == 'alipay' else '微信支付' }}</h6>
+                                        <p class="card-text">状态: {{ '启用' if qrcode.active else '禁用' }}</p>
+                                        <p class="card-text">备注: {{ qrcode.remark or '无' }}</p>
+                                        <button class="btn btn-{{ 'danger' if qrcode.active else 'success' }}" 
+                                                onclick="toggleQRCode({{qrcode.id}}, this)">
+                                            {{ '禁用' if qrcode.active else '启用' }}
+                                        </button>
+                                        <button class="btn btn-danger ms-2" 
+                                                onclick="deleteQRCode({{qrcode.id}}, this)">
+                                            删除
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.bootcdn.net/ajax/libs/bootstrap/5.1.3/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function deleteQRCode(id, button) {
+            if (confirm('确定要删除这个二维码吗？此操作不可恢复。')) {
+                fetch(`/admin/qrcode/${id}/delete`, {
+                    method: 'POST'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        button.closest('.col-md-6').remove();
+                    } else {
+                        alert('删除失败：' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('删除失败，请重试');
+                });
+            }
+        }
+
+        function toggleQRCode(id, button) {
+            fetch(`/admin/qrcode/${id}/toggle`, {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const isActive = button.innerText === '禁用';
+                    button.innerText = isActive ? '启用' : '禁用';
+                    button.classList.toggle('btn-danger');
+                    button.classList.toggle('btn-success');
+                    button.closest('.card-body').querySelector('.card-text').innerText = 
+                        `状态: ${isActive ? '禁用' : '启用'}`;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('操作失败，请重试');
+            });
+        }
+    </script>
+</body>
+</html>
